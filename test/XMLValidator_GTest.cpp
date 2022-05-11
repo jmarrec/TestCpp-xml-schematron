@@ -9,6 +9,8 @@
 #include "../src/XMLValidator.hpp"
 #include "../src/Filesystem.hpp"
 
+#include <src/resources.hxx>
+
 static void print_element_names(xmlNode* a_node) {
   xmlNode* cur_node = nullptr;
   for (cur_node = a_node; cur_node; cur_node = cur_node->next) {
@@ -22,7 +24,7 @@ TEST(LibXMLTest, basic) {
   xmlDoc* doc = nullptr;
   xmlNode* root_element = nullptr;
 
-  std::string xmlPath("/Users/julien/Software/TestCpp-libxml2/test/books.xml");
+  std::string xmlPath(openstudio::toString(testDirPath() / "books.xml"));
 
   LIBXML_TEST_VERSION
 
@@ -39,32 +41,33 @@ TEST(LibXMLTest, basic) {
 }
 
 TEST(LibXMLTest, XMLValidator) {
-  openstudio::filesystem::path xmlPath("/Users/julien/Software/TestCpp-libxml2/test/books.xml");
-  openstudio::filesystem::path schematronPath("/Users/julien/Software/TestCpp-libxml2/test/books.sct");
+  openstudio::filesystem::path xmlPath = testDirPath() / "books.xml";
+  openstudio::filesystem::path schematronPath = testDirPath() / "books.sct";
 
   openstudio::XMLValidator xmlValidator(schematronPath);
   xmlValidator.validate(xmlPath);
 }
 
 TEST(LibXMLTest, XMLValidator_HPXMLvalidator) {
-  openstudio::filesystem::path xmlPath("/Users/julien/Software/TestCpp-libxml2/test/base_mod.xml");
-  openstudio::filesystem::path schematronPath("/Users/julien/Software/TestCpp-libxml2/test/HPXMLvalidator.sct");
+  // I had to modify both the XML document and the Schematron XML so it'd work with the old schematron implementation of libxml
+  openstudio::filesystem::path xmlPath = testDirPath() / "base_mod.xml";
+  openstudio::filesystem::path schematronPath = testDirPath() / "HPXMLvalidator.sct";
 
   openstudio::XMLValidator xmlValidator(schematronPath);
   xmlValidator.validate(xmlPath);
 }
 
 TEST(LibXMLTest, XMLValidator_EPvalidator) {
-  openstudio::filesystem::path xmlPath("/Users/julien/Software/TestCpp-libxml2/test/base_mod.xml");
-  openstudio::filesystem::path schematronPath("/Users/julien/Software/TestCpp-libxml2/test/EPvalidator.sct");
+  openstudio::filesystem::path xmlPath = testDirPath() / "base_mod.xml";
+  openstudio::filesystem::path schematronPath = testDirPath() / "EPvalidator.sct";
 
   openstudio::XMLValidator xmlValidator(schematronPath);
   xmlValidator.validate(xmlPath);
 }
 
 TEST(LibXMLTest, XMLValidator_HPXMLvalidator_XSLT) {
-  openstudio::filesystem::path xmlPath("/Users/julien/Software/TestCpp-libxml2/test/base.xml");
-  openstudio::filesystem::path schematronPath("/Users/julien/Software/TestCpp-libxml2/test/HPXMLvalidator.xslt");
+  openstudio::filesystem::path xmlPath = testDirPath() / "base.xml";
+  openstudio::filesystem::path schematronPath = testDirPath() / "HPXMLvalidator.xslt";
 
   openstudio::XMLValidator xmlValidator(schematronPath);
   EXPECT_FALSE(xmlValidator.xsltValidate(xmlPath));

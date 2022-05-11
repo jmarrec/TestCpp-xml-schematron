@@ -206,8 +206,13 @@ if(USE_LIBXSLT)
   target_link_libraries(testlib PRIVATE CONAN_PKG::libxslt)
 endif()
 
+
+set(TEST_DIR_PATH "${PROJECT_SOURCE_DIR}/test")
+configure_file("${TEST_DIR_PATH}/resources.hxx.in" "${PROJECT_BINARY_DIR}/src/resources.hxx")
+
 add_executable(testlib_tests
   test/XMLValidator_GTest.cpp
+  ${PROJECT_BINARY_DIR}/src/resources.hxx
 )
 target_link_libraries(testlib_tests
   PRIVATE
