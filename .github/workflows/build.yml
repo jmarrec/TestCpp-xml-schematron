@@ -106,8 +106,8 @@ jobs:
       shell: bash
       run: |
         set -x
-        ctest -j $(nproc)
-        gcovr -j $(nproc) --delete --root ../ --exclude '.*GTest.cpp' --print-summary --xml-pretty --xml coverage.xml .
+        ctest -j 2 --verbose
+        gcovr -j 2 --delete --root ../ --exclude '.*GTest.cpp' --print-summary --xml-pretty --xml coverage.xml .
 
     - name: Publish to codecov
       uses: codecov/codecov-action@v2

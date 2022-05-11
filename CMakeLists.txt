@@ -219,6 +219,8 @@ target_link_libraries(testlib_tests
   testlib
   CONAN_PKG::gtest
   CONAN_PKG::fmt
+  CONAN_PKG::libxml2
+  CONAN_PKG::libxslt
 )
 target_link_libraries(testlib_tests
   PRIVATE
