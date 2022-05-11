@@ -1,0 +1,20 @@
+<!-- <schema xmlns="http://purl.oclc.org/dsdl/schematron" > -->
+<sch:schema xmlns:sch='http://purl.oclc.org/dsdl/schematron'>
+  <sch:title>HPXML Schematron Validator: HPXML.xsd</sch:title>
+    <!-- <sch:ns uri='http://purl.oclc.org/dsdl/schematron' prefix='h'/> -->
+  <sch:pattern name="Test attribute">
+    <sch:rule context='/HPXML/XMLTransactionHeaderInformation'>
+    <!-- <sch:rule context="XMLTransactionHeaderInformation"> -->
+      <sch:assert role='ERROR' test='Transaction[text()="create" or text()="update"] or not(Transaction)'>
+        Expected Transaction to be create or update
+      </sch:assert>
+    </sch:rule>
+
+    <sch:rule context='/HPXML/Building/ProjectStatus'>
+      <sch:assert role='ERROR' test='EventType[text()="audit" or text()="proposed workscope" or text()="approved workscope" or text()="construction-period testing/daily test out" or text()="job completion testing/final inspection" or text()="quality assurance/monitoring" or text()="preconstruction"] or not(EventType)'>Expected EventType to be 'audit' or 'proposed workscope' or 'approved workscope' or 'construction-period testing/daily test out' or 'job completion testing/final inspection' or 'quality assurance/monitoring' or 'preconstruction' for
+        <name path="parent::*"/>
+      </sch:assert>
+    </sch:rule>
+
+  </sch:pattern>
+</sch:schema>

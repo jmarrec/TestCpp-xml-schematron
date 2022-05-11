@@ -1,0 +1,7 @@
+<schema xmlns="http://www.ascc.net/xml/schematron" >
+     <pattern name="Test attribute">
+          <rule context="book">
+               <assert test="@id">Attribute id is missing</assert>
+          </rule>
+     </pattern>
+</schema>

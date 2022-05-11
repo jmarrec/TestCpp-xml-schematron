@@ -1,0 +1,33 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<HPXML> <!--  xmlns="http://hpxmlonline.com/2019/10"> -->
+
+    <AnotherLevel>
+      <XMLTransactionHeaderInformation>
+        <XMLType>HPXML</XMLType>
+        <XMLGeneratedBy>tasks.rb</XMLGeneratedBy>
+        <CreatedDateAndTime>2000-01-01T00:00:00-07:00</CreatedDateAndTime>
+        <Transaction>something else</Transaction>
+      </XMLTransactionHeaderInformation>
+    </AnotherLevel>
+
+    <XMLTransactionHeaderInformation>
+        <XMLType>HPXML</XMLType>
+        <XMLGeneratedBy>tasks.rb</XMLGeneratedBy>
+        <CreatedDateAndTime>2000-01-01T00:00:00-07:00</CreatedDateAndTime>
+        <Transaction>something else</Transaction>
+    </XMLTransactionHeaderInformation>
+
+  <Building>
+    <BuildingID id='MyBuilding'/>
+    <Site>
+      <SiteID id='SiteID'/>
+      <Address>
+        <StateCode>CO</StateCode>
+      </Address>
+    </Site>
+    <ProjectStatus>
+      <EventType>THIS IS WRONG</EventType>
+    </ProjectStatus>
+  </Building>
+
+</HPXML>
