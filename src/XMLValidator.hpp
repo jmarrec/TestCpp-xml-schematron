@@ -70,7 +70,7 @@ class XMLValidator
 
   void reset();
 
-  std::optional<std::string> m_xsdPath;  // TODO: replace to path
+  std::optional<openstudio::path> m_xsdPath;  // TODO: replace to path
   std::optional<std::string> m_xsdString;
 
   std::vector<std::string> m_errors;

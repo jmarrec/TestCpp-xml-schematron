@@ -7,7 +7,7 @@
 #include <libxml/schematron.h>
 
 #ifdef USE_LIBXSLT
-#  pragma message "USING LIBXLST"
+// #  pragma message("USING LIBXLST")
 #  include <libxslt/xslt.h>
 #  include <libxslt/xsltInternals.h>
 #  include <libxslt/transform.h>
@@ -90,7 +90,7 @@ bool XMLValidator::validate(const openstudio::path& xmlPath) {
   const auto* filename = filename_str.c_str();
 
   /*parse the file and get the DOM */
-  doc = xmlReadFile(xmlPath.c_str(), nullptr, 0);
+  doc = xmlReadFile(filename, nullptr, 0);
 
   xmlSchematronValidCtxt* ctxt = nullptr;
   int flag = XML_SCHEMATRON_OUT_TEXT;
