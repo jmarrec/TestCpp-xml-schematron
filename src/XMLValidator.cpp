@@ -25,6 +25,51 @@ extern int xmlLoadExtDtdDefaultValue;
 
 namespace openstudio {
 
+inline const xmlChar* xml_string(const std::string& s) {
+  return reinterpret_cast<const xmlChar*>(s.c_str());
+}
+
+// Cast size_t to int safely, i.e. throw an exception in case of an overflow.
+inline int checked_int_cast(std::size_t len) {
+  if (len > INT_MAX) {
+    throw std::invalid_argument("data too long");
+  }
+
+  return static_cast<int>(len);
+}
+
+// Cast int to size_t safely, checking that it's non-negative (we assume that
+// size_t is always big enough to contain INT_MAX, which is true for all
+// currently existing architectures).
+inline std::size_t checked_size_t_cast(int len) {
+  if (len < 0) {
+    throw std::runtime_error("length value unexpectedly negative");
+  }
+
+  return static_cast<std::size_t>(len);
+}
+
+// exception safe wrapper around xmlChar*s that are returned from some
+// of the libxml functions that the user must free.
+class xmlchar_helper
+{
+ public:
+  xmlchar_helper(xmlChar* ptr) : ptr_(ptr) {}
+
+  ~xmlchar_helper() {
+    if (ptr_) {
+      xmlFree(ptr_);
+    }
+  }
+
+  const char* get() const {
+    return reinterpret_cast<const char*>(ptr_);
+  }
+
+ private:
+  xmlChar* ptr_;
+};
+
 XMLValidator::XMLValidator(const openstudio::path& xsdPath) : m_xsdPath(std::filesystem::absolute(xsdPath)) {
   if (!openstudio::filesystem::exists(xsdPath)) {
     throw std::runtime_error(openstudio::toString(xsdPath) + "' does not exist");
@@ -50,6 +95,10 @@ std::vector<std::string> XMLValidator::errors() const {
 
 std::vector<std::string> XMLValidator::warnings() const {
   return {};
+}
+
+std::string XMLValidator::fullValidationReport() const {
+  return m_fullValidationReport;
 }
 
 bool XMLValidator::isValid() const {
@@ -179,6 +228,26 @@ std::vector<std::string> processXSLTApplyResult(xmlDoc* res) {
   return result;
 }
 
+std::string dumpXSLTApplyResultToString(xmlDoc* res, xsltStylesheet* style) {
+
+  xmlChar* xml_string = nullptr;
+  int xml_string_length = 0;
+
+  std::string result;
+
+  if (xsltSaveResultToString(&xml_string, &xml_string_length, res, style) == 0) {
+
+    xmlchar_helper helper(xml_string);
+    if (xml_string_length > 0) {
+      result.assign(helper.get(), checked_size_t_cast(xml_string_length));
+    }
+  }
+
+  // std::string result((char*)xml_string);
+  // xmlFree(xml_string);
+  return result;
+}
+
 bool XMLValidator::xsltValidate(const openstudio::path& xmlPath) {
   if (!openstudio::filesystem::exists(xmlPath)) {
     std::cerr << "Error: '" << toString(xmlPath) << "' does not exist";
@@ -198,15 +267,17 @@ bool XMLValidator::xsltValidate(const openstudio::path& xmlPath) {
 
   auto schematron_filename_str = openstudio::toString(m_xsdPath.value());
   const auto* schematron_filename = schematron_filename_str.c_str();
-  xsltStylesheet* cur = xsltParseStylesheetFile((const xmlChar*)schematron_filename);
+  xsltStylesheet* style = xsltParseStylesheetFile((const xmlChar*)schematron_filename);
 
   auto filename_str = openstudio::toString(xmlPath);
   const auto* filename = filename_str.c_str();
   xmlDoc* doc = xmlParseFile(filename);
-  xmlDoc* res = xsltApplyStylesheet(cur, doc, params);
+  xmlDoc* res = xsltApplyStylesheet(style, doc, params);
 
   // Dump result of xlstApply
-  // xsltSaveResultToFile(stdout, res, cur);
+  m_fullValidationReport = dumpXSLTApplyResultToString(res, style);
+  fmt::print("\n====== Full Validation Report =====\n\n{}", m_fullValidationReport);
+  // xsltSaveResultToFile(stdout, res, style);
 
   m_errors = processXSLTApplyResult(res);
   for (const auto& error : m_errors) {
@@ -216,7 +287,7 @@ bool XMLValidator::xsltValidate(const openstudio::path& xmlPath) {
   /* dump the resulting document */
   // xmlDocDump(stdout, res);
 
-  xsltFreeStylesheet(cur);
+  xsltFreeStylesheet(style);
   xmlFreeDoc(res);
   xmlFreeDoc(doc);
 

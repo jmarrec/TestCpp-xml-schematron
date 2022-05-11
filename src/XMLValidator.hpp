@@ -46,6 +46,8 @@ class XMLValidator
 
   bool isValid() const;
 
+  std::string fullValidationReport() const;
+
   //@}
   /** @name Setters */
   //@{
@@ -74,6 +76,8 @@ class XMLValidator
   std::optional<std::string> m_xsdString;
 
   std::vector<std::string> m_errors;
+
+  std::string m_fullValidationReport;
 };
 }  // namespace openstudio
 #endif /* ifndef XMLVALIDATOR_HPP */

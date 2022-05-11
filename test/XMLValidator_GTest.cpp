@@ -77,4 +77,6 @@ TEST(LibXMLTest, XMLValidator_HPXMLvalidator_XSLT) {
   EXPECT_EQ("Expected EventType to be 'audit' or 'proposed workscope' or 'approved workscope' or 'construction-period testing/daily test out' or "
             "'job completion testing/final inspection' or 'quality assurance/monitoring' or 'preconstruction'",
             errors[0]);
+
+  EXPECT_NE("", xmlValidator.fullValidationReport());
 }
