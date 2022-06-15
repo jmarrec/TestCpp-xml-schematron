@@ -46,6 +46,8 @@ TEST(LibXMLTest, XMLValidator) {
 
   openstudio::XMLValidator xmlValidator(schematronPath);
   xmlValidator.validate(xmlPath);
+  EXPECT_EQ(0, xmlValidator.errors().size());
+  EXPECT_EQ(0, xmlValidator.warnings().size());
 }
 
 TEST(LibXMLTest, XMLValidator_HPXMLvalidator) {
@@ -55,6 +57,8 @@ TEST(LibXMLTest, XMLValidator_HPXMLvalidator) {
 
   openstudio::XMLValidator xmlValidator(schematronPath);
   xmlValidator.validate(xmlPath);
+  EXPECT_EQ(0, xmlValidator.errors().size());
+  EXPECT_EQ(0, xmlValidator.warnings().size());
 }
 
 TEST(LibXMLTest, XMLValidator_EPvalidator) {
@@ -63,6 +67,8 @@ TEST(LibXMLTest, XMLValidator_EPvalidator) {
 
   openstudio::XMLValidator xmlValidator(schematronPath);
   xmlValidator.validate(xmlPath);
+  EXPECT_EQ(0, xmlValidator.errors().size());
+  EXPECT_EQ(0, xmlValidator.warnings().size());
 }
 
 TEST(LibXMLTest, XMLValidator_HPXMLvalidator_XSLT) {
@@ -74,9 +80,12 @@ TEST(LibXMLTest, XMLValidator_HPXMLvalidator_XSLT) {
 
   auto errors = xmlValidator.errors();
   EXPECT_EQ(1, errors.size());
+  EXPECT_EQ(LogLevel::Error, errors[0].logLevel());
   EXPECT_EQ("Expected EventType to be 'audit' or 'proposed workscope' or 'approved workscope' or 'construction-period testing/daily test out' or "
             "'job completion testing/final inspection' or 'quality assurance/monitoring' or 'preconstruction'",
-            errors[0]);
+            errors[0].logMessage());
 
   EXPECT_NE("", xmlValidator.fullValidationReport());
+  EXPECT_EQ(1, xmlValidator.errors().size());
+  EXPECT_EQ(0, xmlValidator.warnings().size());
 }

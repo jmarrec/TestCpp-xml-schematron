@@ -7,6 +7,9 @@
 #include <vector>
 
 #include "Filesystem.hpp"
+#include "LogMessage.hpp"
+
+typedef struct _xmlError xmlError;
 
 namespace openstudio {
 class XMLValidator
@@ -40,9 +43,9 @@ class XMLValidator
 
   std::optional<std::string> xsdString() const;
 
-  std::vector<std::string> errors() const;
+  std::vector<LogMessage> errors() const;
 
-  std::vector<std::string> warnings() const;
+  std::vector<LogMessage> warnings() const;
 
   bool isValid() const;
 
@@ -59,13 +62,15 @@ class XMLValidator
   bool xsltValidate(const openstudio::path& xmlPath);
 
   //@}
-  /** @name Operators */
+  /** @name callbacks */
   //@{
 
   //@}
 
  protected:
   void setParser();
+  friend void callback_structured_error(void* userData, xmlError* error);
+  void registerLogMessage(LogMessage logMessage);
 
  private:
   // REGISTER_LOGGER("openstudio.XMLValidator");
@@ -75,7 +80,7 @@ class XMLValidator
   std::optional<openstudio::path> m_xsdPath;  // TODO: replace to path
   std::optional<std::string> m_xsdString;
 
-  std::vector<std::string> m_errors;
+  std::vector<LogMessage> m_logMessages;
 
   std::string m_fullValidationReport;
 };

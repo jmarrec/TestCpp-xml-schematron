@@ -198,6 +198,8 @@ add_library(testlib
   src/Filesystem.hpp
   src/XMLValidator.hpp
   src/XMLValidator.cpp
+  src/LogMessage.hpp
+  src/LogMessage.cpp
 )
 
 target_link_libraries(testlib PRIVATE project_options CONAN_PKG::fmt CONAN_PKG::libxml2)

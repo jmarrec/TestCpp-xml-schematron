@@ -16,9 +16,11 @@
 #  include <libxml/xpathInternals.h>  // BAD_CAST
 #endif
 
+#include <algorithm>
 #include <filesystem>
-#include <stdexcept>
 #include <iostream>
+#include <iterator>
+#include <stdexcept>
 
 // That's really shitty but it's a global that's needed
 extern int xmlLoadExtDtdDefaultValue;
@@ -70,6 +72,98 @@ class xmlchar_helper
   xmlChar* ptr_;
 };
 
+std::string build_message(const std::string& levelName, const xmlError& error) {
+  std::ostringstream oss;
+
+  // We currently don't decode domain and code to their symbolic
+  // representation as it doesn't seem to be worth it in practice, the error
+  // message is usually clear enough, while these numbers can be used for
+  // automatic classification of messages.
+  oss << "XML " << levelName << " " << error.domain << "." << error.code << ": " << error.message;
+
+  if (error.file) {
+    oss << " at " << error.file;
+    if (error.line > 0) {
+      oss << ":" << error.line;
+
+      // Column information, if available, is passed in the second int
+      // field (first one is used with the first string field, see below).
+      if (error.int2 > 0) {
+        oss << "," << error.int2;
+      }
+    }
+  }
+
+  if (error.str1) {
+    oss << " while processing \"" << error.str1 << "\"";
+    if (error.int1 > 0) {
+      oss << " at position " << error.int1;
+    }
+  }
+
+  return oss.str();
+}
+
+void callback_structured_error(void* userData, xmlError* error) {
+  // This shouldn't happen, but better be safe than sorry
+  if (!error) {
+    return;
+  }
+
+  if (error->message) {
+    auto* validator = static_cast<XMLValidator*>(userData);
+
+    LogLevel level = LogLevel::Trace;
+    std::string levelName;
+    if (error->level == XML_ERR_NONE) {
+      fmt::print(stderr, "Got a None Error?");
+      levelName = "None";
+    } else if (error->level == XML_ERR_WARNING) {
+      // Some libxml warnings are pretty fatal errors, e.g. failing
+      // to open the input file is reported as a warning with code
+      // XML_IO_LOAD_ERROR, so treat them as such.
+      if (error->code == XML_IO_LOAD_ERROR) {
+        level = LogLevel::Error;
+        levelName = "error";
+      } else {
+        level = LogLevel::Warn;
+        levelName = "warning";
+      }
+
+    } else if (error->level == XML_ERR_ERROR) {
+      level = LogLevel::Error;
+      levelName = "error";
+    } else if (error->level == XML_ERR_FATAL) {
+      level = LogLevel::Fatal;
+      levelName = "fatal error";
+    }
+
+    validator->registerLogMessage(LogMessage(level, "XMLValidator", build_message(levelName, *error)));
+  }
+}
+
+void XMLValidator::registerLogMessage(LogMessage logMessage) {
+  m_logMessages.push_back(std::move(logMessage));
+}
+
+// void xmlStructuredErrorFunc(void * userData, xmlErrorPtr error);
+//
+// struct _xmlError {
+//     int domain  : What part of the library raised this error
+//     int code  : The error code, e.g. an xmlParserError
+//     char *  message : human-readable informative error message
+//     xmlErrorLevel level : how consequent is the error
+//     char *  file  : the filename
+//     int line  : the line number if available
+//     char *  str1  : extra string information
+//     char *  str2  : extra string information
+//     char *  str3  : extra string information
+//     int int1  : extra number information
+//     int int2  : error column # or 0 if N/A (todo: rename field when we would brk ABI)
+//     void *  ctxt  : the parser context if available
+//     void *  node  : the node in the tree
+// } xmlError;
+
 XMLValidator::XMLValidator(const openstudio::path& xsdPath) : m_xsdPath(std::filesystem::absolute(xsdPath)) {
   if (!openstudio::filesystem::exists(xsdPath)) {
     throw std::runtime_error(openstudio::toString(xsdPath) + "' does not exist");
@@ -89,12 +183,20 @@ std::optional<std::string> XMLValidator::xsdString() const {
   return m_xsdString;
 }
 
-std::vector<std::string> XMLValidator::errors() const {
-  return m_errors;
+std::vector<LogMessage> XMLValidator::errors() const {
+  std::vector<LogMessage> result;
+  std::copy_if(m_logMessages.cbegin(), m_logMessages.cend(), std::back_inserter(result),
+               [](const auto& logMessage) { return logMessage.logLevel() > LogLevel::Warn; });
+
+  return result;
 }
 
-std::vector<std::string> XMLValidator::warnings() const {
-  return {};
+std::vector<LogMessage> XMLValidator::warnings() const {
+  std::vector<LogMessage> result;
+  std::copy_if(m_logMessages.cbegin(), m_logMessages.cend(), std::back_inserter(result),
+               [](const auto& logMessage) { return logMessage.logLevel() == LogLevel::Warn; });
+
+  return result;
 }
 
 std::string XMLValidator::fullValidationReport() const {
@@ -102,7 +204,7 @@ std::string XMLValidator::fullValidationReport() const {
 }
 
 bool XMLValidator::isValid() const {
-  return m_errors.empty();
+  return errors().empty();
 }
 
 bool XMLValidator::validate(const openstudio::path& xmlPath) {
@@ -130,7 +232,6 @@ bool XMLValidator::validate(const openstudio::path& xmlPath) {
     throw std::runtime_error("Memory error reading schema in xmlSchematronNewParserCtxt");
   }
 
-  // xmlSchematronSetValidStructuredErrors(parser_ctxt, (xmlStructuredErrorFunc)fprintf, stderr);
   schema = xmlSchematronParse(parser_ctxt);
   xmlSchematronFreeParserCtxt(parser_ctxt);
 
@@ -149,7 +250,8 @@ bool XMLValidator::validate(const openstudio::path& xmlPath) {
     throw std::runtime_error("Memory error reading schema in xmlSchematronNewValidCtxt");
   }
 
-  // xmlSchematronSetValidStructuredErrors(ctxt, (xmlStructuredErrorFunc)fprintf, stderr);
+  xmlSchematronSetValidStructuredErrors(ctxt, callback_structured_error, this);
+
   // Let's parse the XML document. The parser will cache any grammars encountered.
 
   int ret = xmlSchematronValidateDoc(ctxt, doc);
@@ -203,12 +305,12 @@ std::vector<std::string> processXSLTApplyResult(xmlDoc* res) {
   } else {
 
     xmlNodeSet* nodeset = xpathObj->nodesetval;
-    xmlChar* error_message = nullptr;
     for (int i = 0; i < nodeset->nodeNr; i++) {
-      xmlNode* error_node = nodeset->nodeTab[0];
+      xmlNode* error_node = nodeset->nodeTab[i];
       error_node = error_node->xmlChildrenNode;
-      error_message = xmlNodeListGetString(res, error_node->xmlChildrenNode, 1);
-      result.emplace_back((const char*)error_message);
+      xmlchar_helper error_message(xmlNodeListGetString(res, error_node->xmlChildrenNode, 1));
+
+      result.emplace_back(error_message.get());
       // while (error_node != nullptr) {
       //   if ((xmlStrcmp(error_node->name, (const xmlChar*)"text") == 0)) {
       //     keyword = xmlNodeListGetString(doc, error_node->xmlChildrenNode, 1);
@@ -217,7 +319,6 @@ std::vector<std::string> processXSLTApplyResult(xmlDoc* res) {
 
       //   error_node = error_node->next;
       // }
-      xmlFree(error_message);
     }
   }
 
@@ -279,9 +380,10 @@ bool XMLValidator::xsltValidate(const openstudio::path& xmlPath) {
   fmt::print("\n====== Full Validation Report =====\n\n{}", m_fullValidationReport);
   // xsltSaveResultToFile(stdout, res, style);
 
-  m_errors = processXSLTApplyResult(res);
+  auto m_errors = processXSLTApplyResult(res);
   for (const auto& error : m_errors) {
     fmt::print(stderr, "{}\n", error);
+    m_logMessages.emplace_back(LogLevel::Error, "processXSLTApplyResult", error);
   }
 
   /* dump the resulting document */
@@ -302,7 +404,7 @@ bool XMLValidator::validate(const std::string& /*xmlString*/) {
 }
 
 void XMLValidator::reset() {
-  m_errors.clear();
+  m_logMessages.clear();
 }
 
 }  // namespace openstudio
