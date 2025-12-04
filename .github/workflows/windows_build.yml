@@ -22,14 +22,13 @@ jobs:
 
     - uses: actions/setup-python@v6
       with:
-        python-version: '3.2'
+        python-version: '3.12'
 
     - name: Install conan
       run: |
           python --version
-          pip install conan gcovr
+          pip install conan
           conan --version
-          echo "Enabling conan revisions and setting parallel_download"
           echo "Enabling conan revisions and setting parallel_download"
           conan profile detect --force --name default
           conan profile path default
@@ -46,9 +45,6 @@ jobs:
       shell: bash
       run: |
         mkdir build
-        echo "Using chocolatey to install OpenCppCoverage"
-        choco install opencppcoverage
-        echo "C:/Program Files/OpenCppCoverage" >> $GITHUB_PATH
 
         echo "Using chocolatey to install ninja"
         choco install ninja
@@ -65,23 +61,9 @@ jobs:
       run: |
         conan install . --build=missing -c tools.cmake.cmaketoolchain:generator=Ninja -s compiler.cppstd=20 -s build_type=Debug --output-folder=build
         call ./build/conanbuild.bat
-        # Note ENABLE_COVERAGE isn't an option on MSVC, it works differently
         cmake --preset conan-debug -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=ON -DCPACK_BINARY_IFW:BOOL=ON -DCPACK_BINARY_NSIS:BOOL=OFF
         # We need vcvarsall.bat to be called in the current step where ninja is invoked, so do that here as well
         cmake --build --preset conan-debug
-
-    - name: Produce coverage report
-      working-directory: ./build
-      run: |
-        OpenCppCoverage.exe --sources TestCpp-GHA-Coverage\src --export_type cobertura:coverage.xml --cover_children -- ctest -C Debug --verbose
-
-    - name: Publish to codecov
-      uses: codecov/codecov-action@v5
-      with:
-        flags: ${{ runner.os }}
-        name: ${{ runner.os }}-coverage
-        files: ./build/coverage.xml
-        token: ${{ secrets.CODECOV_TOKEN }}
 
     - name: Build package
       working-directory: ./build

@@ -157,13 +157,8 @@ target_link_libraries(testlib
   project_options
   fmt::fmt
   LibXml2::LibXml2
+  libxslt::libxslt
 )
-
-if(USE_LIBXSLT)
-  target_compile_definitions(testlib PRIVATE USE_LIBXSLT)
-  target_link_libraries(testlib PRIVATE libxslt::libxslt)
-endif()
-
 
 set(TEST_DIR_PATH "${PROJECT_SOURCE_DIR}/test")
 configure_file("${TEST_DIR_PATH}/resources.hxx.in" "${PROJECT_BINARY_DIR}/src/resources.hxx")

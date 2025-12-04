@@ -35,7 +35,7 @@ jobs:
     - name: Install conan
       run: |
           python --version
-          pip install conan gcovr
+          pip install conan
           conan --version
           echo "Enabling conan revisions and setting parallel_download"
           conan profile detect --force --name default
@@ -84,7 +84,7 @@ jobs:
       run: |
         set -x
         conan install . --build=missing -c tools.cmake.cmaketoolchain:generator=Ninja -s compiler.cppstd=20 -s build_type=Debug --output-folder=build
-        cmake --preset conan-debug -DENABLE_COVERAGE:BOOL=ON -DCPACK_BINARY_IFW:BOOL=ON -DUSE_LIBXSLT:BOOL=ON
+        cmake --preset conan-debug -DCPACK_BINARY_IFW:BOOL=ON -DUSE_LIBXSLT:BOOL=ON
 
     - name: Build
       working-directory: ./build

@@ -6,15 +6,13 @@
 #include <libxml/tree.h>
 #include <libxml/schematron.h>
 
-#ifdef USE_LIBXSLT
 // #  pragma message("USING LIBXLST")
-#  include <libxslt/xslt.h>
-#  include <libxslt/xsltInternals.h>
-#  include <libxslt/transform.h>
-#  include <libxslt/xsltutils.h>
-#  include <libxml/xpath.h>
-#  include <libxml/xpathInternals.h>  // BAD_CAST
-#endif
+#include <libxslt/xslt.h>
+#include <libxslt/xsltInternals.h>
+#include <libxslt/transform.h>
+#include <libxslt/xsltutils.h>
+#include <libxml/xpath.h>
+#include <libxml/xpathInternals.h>  // BAD_CAST
 
 #include <algorithm>
 #include <filesystem>
