@@ -18,11 +18,11 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v5
 
-    - uses: actions/setup-python@v3
+    - uses: actions/setup-python@v6
       with:
-        python-version: '3.9'
+        python-version: '3.2'
 
     - name: Install conan
       run: |
@@ -30,14 +30,17 @@ jobs:
           pip install conan gcovr
           conan --version
           echo "Enabling conan revisions and setting parallel_download"
-          conan config set general.revisions_enabled=True
-          conan config set general.parallel_download=8
-          conan user
+          echo "Enabling conan revisions and setting parallel_download"
+          conan profile detect --force --name default
+          conan profile path default
+          conan profile show
+          echo "core:non_interactive = True" >> $HOME/global.conf
+          echo "core.download:parallel = {{os.cpu_count() - 2}}" >> $HOME/global.conf
 
     - name: Setup QtIFW 4.x
       uses: jmarrec/setup-qtifw@v1
       with:
-        qtifw-version: '4.x'
+        qtifw-version: '4.8.1'
 
     - name: Install deps
       shell: bash
@@ -58,15 +61,14 @@ jobs:
         echo "$MSVC_DIR\VC\Auxiliary\Build" >> $GITHUB_PATH
 
     - name: CMake configure & build
-      working-directory: ./build
       shell: cmd
       run: |
-        echo "Using vcvarsall to initialize the development environment"
-        call vcvarsall.bat x64
+        conan install . --build=missing -c tools.cmake.cmaketoolchain:generator=Ninja -s compiler.cppstd=20 -s build_type=Debug --output-folder=build
+        call ./build/conanbuild.bat
         # Note ENABLE_COVERAGE isn't an option on MSVC, it works differently
-        cmake -G Ninja -DCMAKE_BUILD_TYPE:STRING=Debug -DCPACK_BINARY_IFW:BOOL=ON -DCPACK_BINARY_NSIS:BOOL=OFF ../
+        cmake --preset conan-debug -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=ON -DCPACK_BINARY_IFW:BOOL=ON -DCPACK_BINARY_NSIS:BOOL=OFF
         # We need vcvarsall.bat to be called in the current step where ninja is invoked, so do that here as well
-        ninja
+        cmake --build --preset conan-debug
 
     - name: Produce coverage report
       working-directory: ./build
@@ -74,11 +76,12 @@ jobs:
         OpenCppCoverage.exe --sources TestCpp-GHA-Coverage\src --export_type cobertura:coverage.xml --cover_children -- ctest -C Debug --verbose
 
     - name: Publish to codecov
-      uses: codecov/codecov-action@v2
+      uses: codecov/codecov-action@v5
       with:
         flags: ${{ runner.os }}
         name: ${{ runner.os }}-coverage
         files: ./build/coverage.xml
+        token: ${{ secrets.CODECOV_TOKEN }}
 
     - name: Build package
       working-directory: ./build

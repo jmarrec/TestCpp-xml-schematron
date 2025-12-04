@@ -26,11 +26,11 @@ jobs:
           BINARY_EXT: dmg
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v5
 
-    - uses: actions/setup-python@v3
+    - uses: actions/setup-python@v6
       with:
-        python-version: '3.9'
+        python-version: '3.12'
 
     - name: Install conan
       run: |
@@ -38,14 +38,16 @@ jobs:
           pip install conan gcovr
           conan --version
           echo "Enabling conan revisions and setting parallel_download"
-          conan config set general.revisions_enabled=True
-          conan config set general.parallel_download=8
-          conan user
+          conan profile detect --force --name default
+          conan profile path default
+          conan profile show
+          echo "core:non_interactive = True" >> $HOME/global.conf
+          echo "core.download:parallel = {{os.cpu_count() - 2}}" >> $HOME/global.conf
 
     - name: Setup QtIFW 4.x
       uses: jmarrec/setup-qtifw@v1
       with:
-        qtifw-version: '4.x'
+        qtifw-version: '4.8.1'
 
     - name: Install deps
       shell: bash
@@ -71,46 +73,35 @@ jobs:
           echo "$MSVC_DIR\VC\Auxiliary\Build" >> $GITHUB_PATH
         fi;
 
+        NPROC=$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
+        echo "There are $NPROC threads available"
+        echo "NPROC=$NPROC" >> $GITHUB_ENV
+
         mkdir build
 
-    - name: CMake configure (Unix)
-      if: runner.os != 'Windows'
-      working-directory: ./build
+    - name: CMake configure
       shell: bash
       run: |
         set -x
-        cmake -G Ninja -DCMAKE_BUILD_TYPE:STRING=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=ON -DENABLE_COVERAGE:BOOL=ON -DCPACK_BINARY_IFW:BOOL=ON -DUSE_LIBXSLT:BOOL=ON ../
-
-    - name: Configure CMake (Windows)
-      if: runner.os == 'Windows'
-      shell: cmd
-      working-directory: ./build
-      # Note the current convention is to use the -S and -B options here to specify source
-      # and build directories, but this is only available with CMake 3.13 and higher.
-      # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
-      # NOTE: If you re-enable 'Download the OpenStudio installer' step, then pass `openstudio_DIR=$openstudio_DIR cmake [etc]`
-      run: |
-        echo "Using vcvarsall to initialize the development environment"
-        call vcvarsall.bat x64
-        cmake -G Ninja -DCMAKE_BUILD_TYPE:STRING=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=ON -DENABLE_COVERAGE:BOOL=ON -DCPACK_BINARY_IFW:BOOL=ON -DUSE_LIBXSLT:BOOL=ON ../
+        conan install . --build=missing -c tools.cmake.cmaketoolchain:generator=Ninja -s compiler.cppstd=20 -s build_type=Debug --output-folder=build
+        cmake --preset conan-debug -DENABLE_COVERAGE:BOOL=ON -DCPACK_BINARY_IFW:BOOL=ON -DUSE_LIBXSLT:BOOL=ON
 
     - name: Build
       working-directory: ./build
       shell: bash
       run: |
-        set -x
-        ninja
+        cmake --build --preset conan-debug
 
     - name: Produce coverage report
       working-directory: ./build
       shell: bash
       run: |
         set -x
-        ctest -j 2 --verbose
-        gcovr -j 2 --delete --root ../ --exclude '.*GTest.cpp' --print-summary --xml-pretty --xml coverage.xml .
+        ctest -j $NPROC --verbose
+        gcovr -j $NPROC --delete --root ../ --exclude '.*GTest.cpp' --print-summary --xml-pretty --xml coverage.xml .
 
     - name: Publish to codecov
-      uses: codecov/codecov-action@v2
+      uses: codecov/codecov-action@v5
       with:
         flags: ${{ runner.os }}
         name: ${{ runner.os }}-coverage
@@ -121,6 +112,7 @@ jobs:
       shell: bash
       run: |
         set -x
+        . ./conanbuild.sh
         ninja package
 
     - name: Upload Binary installer to release
